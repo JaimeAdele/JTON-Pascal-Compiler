@@ -120,6 +120,17 @@ public class StatementGenerator extends CodeGenerator
     public void emitWhile(PascalParser.WhileStatementContext ctx)
     {
         /***** Complete this method. *****/
+        Label loopTopLabel  = new Label();
+        Label loopExitLabel = new Label();
+
+        emitLabel(loopTopLabel);
+
+        compiler.visit(ctx.expression());
+        emit(IFEQ, loopExitLabel);
+        compiler.visit(ctx.statement());
+        emit(GOTO, loopTopLabel);
+
+        emitLabel(loopExitLabel);
     }
     
     /**
