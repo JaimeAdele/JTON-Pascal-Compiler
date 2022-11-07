@@ -152,8 +152,16 @@ public class StatementGenerator extends CodeGenerator
         compiler.visit(ctx.variable());
         // assign expression value to the variable
         compiler.visit(ctx.expression(0));
-        emitStoreValue(?);
-        emit(ISTORE)
+
+        PascalParser.VariableContext   varCtx  = ctx.variable();
+//        PascalParser.ExpressionContext exprCtx = ctx.expression(0);
+        SymtabEntry varId = varCtx.entry;
+//        Typespec varType  = varCtx.type;
+//        Typespec exprType = exprCtx.type;
+
+        compiler.visit(ctx.expression(0));
+
+        emitStoreValue(varId, varId.getType());
 
         emitLabel(loopTopLabel);
 
@@ -162,15 +170,18 @@ public class StatementGenerator extends CodeGenerator
             // for TO, when the incremented value is greater than the comp val, exit the loop
             emit(IF_ICMPGT, loopExitLabel);
             compiler.visit(ctx.statement());
+            emitLoadValue(varId);
             emit(ICONST_1);
             emit(IADD);
-            emit()
+            emitStoreValue(varId, varId.getType());
         } else {
             // for DOWNTO, when the incremented value is less than the comp val, exit the loop
             emit(IF_ICMPLT, loopExitLabel);
             compiler.visit(ctx.statement());
+            emitLoadValue(varId);
             emit(ICONST_M1);
-//            emit(IADD);
+            emit(IADD);
+            emitStoreValue(varId, varId.getType());
         }
         emit(GOTO, loopTopLabel);
 
