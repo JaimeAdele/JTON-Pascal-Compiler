@@ -145,6 +145,36 @@ public class StatementGenerator extends CodeGenerator
     public void emitFor(PascalParser.ForStatementContext ctx)
     {
         /***** Complete this method. *****/
+        Label loopTopLabel  = new Label();
+        Label loopExitLabel = new Label();
+
+        // declare a variable
+        compiler.visit(ctx.variable());
+        // assign expression value to the variable
+        compiler.visit(ctx.expression(0));
+        emitStoreValue(?);
+        emit(ISTORE)
+
+        emitLabel(loopTopLabel);
+
+        compiler.visit(ctx.expression(1));
+        if (ctx.TO() != null) {
+            // for TO, when the incremented value is greater than the comp val, exit the loop
+            emit(IF_ICMPGT, loopExitLabel);
+            compiler.visit(ctx.statement());
+            emit(ICONST_1);
+            emit(IADD);
+            emit()
+        } else {
+            // for DOWNTO, when the incremented value is less than the comp val, exit the loop
+            emit(IF_ICMPLT, loopExitLabel);
+            compiler.visit(ctx.statement());
+            emit(ICONST_M1);
+//            emit(IADD);
+        }
+        emit(GOTO, loopTopLabel);
+
+        emitLabel(loopExitLabel);
     }
     
     /**
