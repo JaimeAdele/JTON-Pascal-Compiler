@@ -149,22 +149,23 @@ public class StatementGenerator extends CodeGenerator
         Label loopExitLabel = new Label();
 
         // declare a variable
-        compiler.visit(ctx.variable());
+//        compiler.visit(ctx.variable());
         // assign expression value to the variable
-        compiler.visit(ctx.expression(0));
+//        compiler.visit(ctx.expression(0));
 
-        PascalParser.VariableContext   varCtx  = ctx.variable();
-//        PascalParser.ExpressionContext exprCtx = ctx.expression(0);
+        PascalParser.VariableContext varCtx = ctx.variable();
+        PascalParser.ExpressionContext exprCtx = ctx.expression(0);
         SymtabEntry varId = varCtx.entry;
 //        Typespec varType  = varCtx.type;
 //        Typespec exprType = exprCtx.type;
 
-        compiler.visit(ctx.expression(0));
+        compiler.visit(exprCtx);
 
         emitStoreValue(varId, varId.getType());
 
         emitLabel(loopTopLabel);
 
+        emitLoadValue(varId);
         compiler.visit(ctx.expression(1));
         if (ctx.TO() != null) {
             // for TO, when the incremented value is greater than the comp val, exit the loop
