@@ -125,8 +125,8 @@ public class StatementGenerator extends CodeGenerator
             }
         }
         emitLabel("default", exitLabel);
-        for (int i = 0; ctx.caseBranchList().caseBranch(i).caseConstantList() != null && i < ctx.caseBranchList().caseBranch(i).caseConstantList().caseConstant().size(); i++) {
-            System.out.println("printing statement " + i);
+
+        for (int i = 0; ctx.caseBranchList().caseBranch(i).caseConstantList() != null &&i < branchStatementLabels.size(); i++) {
             PascalParser.CaseBranchContext branchCtx = ctx.caseBranchList().caseBranch(i);
             emitLabel(branchStatementLabels.get(i));
             compiler.visit(branchCtx.statement());
