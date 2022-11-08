@@ -114,76 +114,24 @@ public class StatementGenerator extends CodeGenerator
         }
         Label exitLabel = new Label();
         emit(LOOKUPSWITCH);
-//        System.out.println(ctx.caseBranchList().caseBranch().size());
         for (int i = 0; i < ctx.caseBranchList().caseBranch().size(); i++) {
             // for each case branch
             PascalParser.CaseBranchContext caseBranch = ctx.caseBranchList().caseBranch(i);
             branchStatementLabels.add(new Label());
             for (int j = 0; caseBranch.caseConstantList() != null && j < caseBranch.caseConstantList().caseConstant().size(); j++) {
-                // WHY IS CASECONSTANTLIST NULL? ^^^
                 // for each constant in the branch list
                 PascalParser.CaseConstantContext caseConstant = caseBranch.caseConstantList().caseConstant(j);
-                emit(NOP, caseConstant.constant().getText() + ": " + branchStatementLabels.get(i));
+                emitLabel(caseConstant.constant().getText(), branchStatementLabels.get(i));
             }
         }
-        emit(NOP, "default: " + exitLabel);
+        emitLabel("default", exitLabel);
         for (int i = 0; ctx.caseBranchList().caseBranch(i).caseConstantList() != null && i < ctx.caseBranchList().caseBranch(i).caseConstantList().caseConstant().size(); i++) {
+            System.out.println("printing statement " + i);
             PascalParser.CaseBranchContext branchCtx = ctx.caseBranchList().caseBranch(i);
             emitLabel(branchStatementLabels.get(i));
             compiler.visit(branchCtx.statement());
         }
         emitLabel(exitLabel);
-    }
-
-    public void emitCase2(PascalParser.CaseStatementContext ctx)
-    {
-        /***** Complete this method. *****/
-        PascalParser.ExpressionContext exprCtx = ctx.expression();
-        Label condExitLabel = new Label();
-
-        for (int i = 0; i < ctx.caseBranchList().caseBranch().size(); i++) {
-            // for each case branch
-            Label statementLabel = new Label();
-            Label nextBranchLabel = new Label();
-            PascalParser.CaseConstantListContext constListCtx = ctx.caseBranchList().caseBranch(i).caseConstantList();
-            for (int j = 0; j < constListCtx.caseConstant().size(); j++) {
-                // for each case constant
-                compiler.visit(exprCtx); // put expression on the stack
-                compiler.visit(constListCtx.caseConstant(j)); // put case constant on the stack
-                // compare top two items, if equal, go to statement
-                emit(IF_ICMPEQ, statementLabel);
-                // if not equal, go to next label
-                emit(IFNE, nextBranchLabel);
-
-            }
-            compiler.visit(ctx.caseBranchList().caseBranch(i).statement());
-            emit(GOTO, condExitLabel);
-            emitLabel(nextBranchLabel);
-        }
-        emitLabel(condExitLabel);
-
-
-        emit(LOOKUPSWITCH);
-
-
-    }
-
-    public void emitCaseBranchList(PascalParser.CaseBranchListContext ctx, PascalParser.ExpressionContext exprCtx) {
-        for (int i = 0; i < ctx.caseBranch().size(); i++) {
-            // for each case branch
-//            emitCaseBranch();
-        }
-    }
-
-    public void emitCaseBranch(PascalParser.CaseBranchContext ctx, PascalParser.ExpressionContext exprCtx) {
-        PascalParser.CaseConstantListContext constListCtx = ctx.caseConstantList();
-        for (int i = 0; i < constListCtx.caseConstant().size(); i++) {
-//            emitCaseConstantList();
-        }
-    }
-
-    public void emitCaseConstantList(PascalParser.CaseConstantListContext ctx) {
-
     }
 
     /**
