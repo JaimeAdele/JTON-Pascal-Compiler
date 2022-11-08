@@ -5,7 +5,7 @@ import intermediate.symtab.*;
 import intermediate.type.*;
 import intermediate.type.Typespec.Form;
 
-import java.util.ArrayList;
+import java.util.*;
 
 import static intermediate.type.Typespec.Form.*;
 import static backend.compiler.Instruction.*;
@@ -20,6 +20,17 @@ import static backend.compiler.Instruction.*;
  */
 public class StatementGenerator extends CodeGenerator
 {
+    public static boolean isNumeric(String strNum) {
+        if (strNum == null) {
+            return false;
+        }
+        try {
+            double d = Double.parseDouble(strNum);
+        } catch (NumberFormatException nfe) {
+            return false;
+        }
+        return true;
+    }
     /**
      * Constructor.
      * @param parent the parent generator.
@@ -113,25 +124,55 @@ public class StatementGenerator extends CodeGenerator
             branchStatementLabels.add(new Label());
         }
         Label exitLabel = new Label();
+        compiler.visit(ctx.expression());
         emit(LOOKUPSWITCH);
+        Map<String, Label> label_map = new HashMap<>();
+        ArrayList<String> case_constants = new ArrayList<>();
         for (int i = 0; i < ctx.caseBranchList().caseBranch().size(); i++) {
             // for each case branch
             PascalParser.CaseBranchContext caseBranch = ctx.caseBranchList().caseBranch(i);
             branchStatementLabels.add(new Label());
             for (int j = 0; caseBranch.caseConstantList() != null && j < caseBranch.caseConstantList().caseConstant().size(); j++) {
                 // for each constant in the branch list
-                PascalParser.CaseConstantContext caseConstant = caseBranch.caseConstantList().caseConstant(j);
-                emitLabel(caseConstant.constant().getText(), branchStatementLabels.get(i));
+                String caseConstant = caseBranch.caseConstantList().caseConstant(j).constant().getText();
+                if (!isNumeric(caseConstant)) {
+                    if (caseConstant.toLowerCase().equals("true")) {
+                        caseConstant = "0";
+                    } else if (caseConstant.toLowerCase().equals("false")) {
+                        caseConstant = "1";
+                    } else if (caseConstant.length() == 3 && caseConstant.charAt(0) == '\'' && caseConstant.charAt(2) == '\'') {
+                        caseConstant = String.valueOf(Character.getNumericValue(caseConstant.charAt(1)));
+                        System.out.println("case: " + caseConstant);
+                    }
+                }
+                case_constants.add(caseConstant);
+                label_map.put(caseConstant, branchStatementLabels.get(i));
             }
         }
-        emitLabel("default", exitLabel);
 
-        for (int i = 0; ctx.caseBranchList().caseBranch(i).caseConstantList() != null &&i < branchStatementLabels.size(); i++) {
-            PascalParser.CaseBranchContext branchCtx = ctx.caseBranchList().caseBranch(i);
+        case_constants.sort((a, b) -> (int)(Double.parseDouble(a) - Double.parseDouble(b)));
+
+        for (String case_constant : case_constants) {
+            emitLabel(case_constant, label_map.get(case_constant));
+        }
+        emitLabel("default", exitLabel);
+        for (int i = 0; ctx.caseBranchList().caseBranch(i) != null && ctx.caseBranchList().caseBranch(i).caseConstantList() != null &&i < branchStatementLabels.size(); i++){
+            System.out.println("printing statement " + i);
             emitLabel(branchStatementLabels.get(i));
-            compiler.visit(branchCtx.statement());
+            emitCaseBranch(ctx.caseBranchList().caseBranch(i));
+            emit(GOTO, exitLabel);
         }
         emitLabel(exitLabel);
+    }
+
+    public void emitCaseBranch(PascalParser.CaseBranchContext ctx) {
+        PascalParser.CaseConstantListContext listCtx = ctx.caseConstantList();
+
+        if (listCtx != null)
+        {
+            compiler.visit(ctx.statement());
+        }
+
     }
 
     /**
