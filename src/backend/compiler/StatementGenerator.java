@@ -253,6 +253,7 @@ public class StatementGenerator extends CodeGenerator
     public void emitProcedureCall(PascalParser.ProcedureCallStatementContext ctx)
     {
         /***** Complete this method. *****/
+        emitCall(ctx.procedureName().entry, ctx.argumentList());
     }
     
     /**
@@ -262,6 +263,7 @@ public class StatementGenerator extends CodeGenerator
     public void emitFunctionCall(PascalParser.FunctionCallContext ctx)
     {
         /***** Complete this method. *****/
+        emitCall(ctx.functionName().entry, ctx.argumentList());
     }
     
     /**
@@ -273,6 +275,21 @@ public class StatementGenerator extends CodeGenerator
                           PascalParser.ArgumentListContext argListCtx)
     {
         /***** Complete this method. *****/
+        String argTypes = "";
+        String returnType;
+        if (routineId.getType() == null) returnType = "V";
+        else returnType = typeDescriptor(routineId.getType().baseType());
+        argTypes += "(";
+        if (argListCtx != null) {
+            for (PascalParser.ArgumentContext arg : argListCtx.argument()) {
+                compiler.visit(arg.expression());
+            }
+            for (SymtabEntry parameter : routineId.getRoutineParameters()) {
+                argTypes += typeDescriptor(parameter.getType().baseType());
+            }
+        }
+        argTypes += ")";
+        emit(INVOKESTATIC, programName + "/" + routineId.getName() + argTypes + returnType);
     }
 
     /**
