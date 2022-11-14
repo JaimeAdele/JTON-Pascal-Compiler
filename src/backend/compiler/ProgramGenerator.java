@@ -267,7 +267,7 @@ public class ProgramGenerator extends CodeGenerator
         emitLine();
 
         emitDirective(LIMIT_LOCALS, localVariables.count());
-        emitDirective(LIMIT_STACK,  160);
+        emitDirective(LIMIT_STACK,  16);
         emitDirective(END_METHOD);
         
         close();  // the object file
