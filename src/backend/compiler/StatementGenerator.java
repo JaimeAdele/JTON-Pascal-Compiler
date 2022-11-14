@@ -281,9 +281,15 @@ public class StatementGenerator extends CodeGenerator
         else returnType = typeDescriptor(routineId.getType().baseType());
         argTypes += "(";
         if (argListCtx != null) {
-            for (PascalParser.ArgumentContext arg : argListCtx.argument()) {
-                compiler.visit(arg.expression());
+            for (int i = 0; i < argListCtx.argument().size(); i++) {
+                compiler.visit(argListCtx.argument().get(i).expression());
+                if (typeDescriptor(argListCtx.argument().get(i).expression().type.baseType()) == "I" && typeDescriptor(routineId.getRoutineParameters().get(i).getType().baseType()) == "F") {
+                    emit(I2F);
+                }
             }
+//            for (PascalParser.ArgumentContext arg : argListCtx.argument()) {
+//                compiler.visit(arg.expression());
+//            }
             for (SymtabEntry parameter : routineId.getRoutineParameters()) {
                 argTypes += typeDescriptor(parameter.getType().baseType());
             }
