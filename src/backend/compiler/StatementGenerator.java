@@ -5,6 +5,8 @@ import intermediate.symtab.*;
 import intermediate.type.*;
 import intermediate.type.Typespec.Form;
 
+import java.util.*;
+
 import static intermediate.type.Typespec.Form.*;
 import static backend.compiler.Instruction.*;
 
@@ -18,6 +20,17 @@ import static backend.compiler.Instruction.*;
  */
 public class StatementGenerator extends CodeGenerator
 {
+    public static boolean isNumeric(String strNum) {
+        if (strNum == null) {
+            return false;
+        }
+        try {
+            double d = Double.parseDouble(strNum);
+        } catch (NumberFormatException nfe) {
+            return false;
+        }
+        return true;
+    }
     /**
      * Constructor.
      * @param parent the parent generator.
@@ -83,15 +96,83 @@ public class StatementGenerator extends CodeGenerator
     public void emitIf(PascalParser.IfStatementContext ctx)
     {
         /***** Complete this method. *****/
+        Label condExitLabel = new Label();
+//        Label condTrueLabel = new Label();
+        Label condFalseLabel = new Label();
+        compiler.visit(ctx.expression());
+        if (ctx.falseStatement() != null) {
+            emit(IFEQ, condFalseLabel);
+        } else {
+            emit(IFEQ, condExitLabel);
+        }
+        compiler.visit(ctx.trueStatement());
+        emit(GOTO, condExitLabel);
+        if (ctx.falseStatement() != null) {
+            emitLabel(condFalseLabel);
+            compiler.visit(ctx.falseStatement());
+        }
+        emitLabel(condExitLabel);
     }
     
     /**
      * Emit code for a CASE statement.
      * @param ctx the CaseStatementContext.
      */
-    public void emitCase(PascalParser.CaseStatementContext ctx)
-    {
-        /***** Complete this method. *****/
+    public void emitCase(PascalParser.CaseStatementContext ctx) {
+        ArrayList<Label> branchStatementLabels = new ArrayList<>();
+        for (int i = 0; i < ctx.caseBranchList().caseBranch().size(); i++) {
+            branchStatementLabels.add(new Label());
+        }
+        Label exitLabel = new Label();
+        compiler.visit(ctx.expression());
+        emit(LOOKUPSWITCH);
+        Map<String, Label> label_map = new HashMap<>();
+        ArrayList<String> case_constants = new ArrayList<>();
+        for (int i = 0; i < ctx.caseBranchList().caseBranch().size(); i++) {
+            // for each case branch
+            PascalParser.CaseBranchContext caseBranch = ctx.caseBranchList().caseBranch(i);
+            branchStatementLabels.add(new Label());
+            for (int j = 0; caseBranch.caseConstantList() != null && j < caseBranch.caseConstantList().caseConstant().size(); j++) {
+                // for each constant in the branch list
+                String caseConstant = caseBranch.caseConstantList().caseConstant(j).constant().getText();
+                if (!isNumeric(caseConstant)) {
+                    if (caseConstant.toLowerCase().equals("true")) {
+                        caseConstant = "0";
+                    } else if (caseConstant.toLowerCase().equals("false")) {
+                        caseConstant = "1";
+                    } else if (caseConstant.length() == 3 && caseConstant.charAt(0) == '\'' && caseConstant.charAt(2) == '\'') {
+                        caseConstant = String.valueOf(Character.getNumericValue(caseConstant.charAt(1)));
+                        System.out.println("case: " + caseConstant);
+                    }
+                }
+                case_constants.add(caseConstant);
+                label_map.put(caseConstant, branchStatementLabels.get(i));
+            }
+        }
+
+        case_constants.sort((a, b) -> (int)(Double.parseDouble(a) - Double.parseDouble(b)));
+
+        for (String case_constant : case_constants) {
+            emitLabel(case_constant, label_map.get(case_constant));
+        }
+        emitLabel("default", exitLabel);
+        for (int i = 0; ctx.caseBranchList().caseBranch(i) != null && ctx.caseBranchList().caseBranch(i).caseConstantList() != null &&i < branchStatementLabels.size(); i++){
+            System.out.println("printing statement " + i);
+            emitLabel(branchStatementLabels.get(i));
+            emitCaseBranch(ctx.caseBranchList().caseBranch(i));
+            emit(GOTO, exitLabel);
+        }
+        emitLabel(exitLabel);
+    }
+
+    public void emitCaseBranch(PascalParser.CaseBranchContext ctx) {
+        PascalParser.CaseConstantListContext listCtx = ctx.caseConstantList();
+
+        if (listCtx != null)
+        {
+            compiler.visit(ctx.statement());
+        }
+
     }
 
     /**
@@ -129,6 +210,40 @@ public class StatementGenerator extends CodeGenerator
     public void emitFor(PascalParser.ForStatementContext ctx)
     {
         /***** Complete this method. *****/
+        Label loopTopLabel  = new Label();
+        Label loopExitLabel = new Label();
+
+        PascalParser.VariableContext varCtx = ctx.variable();
+        PascalParser.ExpressionContext exprCtx = ctx.expression(0);
+        SymtabEntry varId = varCtx.entry;
+
+        compiler.visit(exprCtx);
+        emitStoreValue(varId, varId.getType());
+
+        emitLabel(loopTopLabel);
+
+        emitLoadValue(varId); // load variable value onto stack
+        compiler.visit(ctx.expression(1)); // load expression value onto stack
+        if (ctx.TO() != null) {
+            // for TO, when the incremented value is greater than the comp val, exit the loop
+            emit(IF_ICMPGT, loopExitLabel);
+            compiler.visit(ctx.statement());
+            emitLoadValue(varId);
+            emit(ICONST_1);
+            emit(IADD);
+            emitStoreValue(varId, varId.getType());
+        } else {
+            // for DOWNTO, when the incremented value is less than the comp val, exit the loop
+            emit(IF_ICMPLT, loopExitLabel);
+            compiler.visit(ctx.statement());
+            emitLoadValue(varId);
+            emit(ICONST_M1);
+            emit(IADD);
+            emitStoreValue(varId, varId.getType());
+        }
+        emit(GOTO, loopTopLabel);
+
+        emitLabel(loopExitLabel);
     }
     
     /**
@@ -138,6 +253,7 @@ public class StatementGenerator extends CodeGenerator
     public void emitProcedureCall(PascalParser.ProcedureCallStatementContext ctx)
     {
         /***** Complete this method. *****/
+        emitCall(ctx.procedureName().entry, ctx.argumentList());
     }
     
     /**
@@ -147,6 +263,7 @@ public class StatementGenerator extends CodeGenerator
     public void emitFunctionCall(PascalParser.FunctionCallContext ctx)
     {
         /***** Complete this method. *****/
+        emitCall(ctx.functionName().entry, ctx.argumentList());
     }
     
     /**
@@ -158,6 +275,24 @@ public class StatementGenerator extends CodeGenerator
                           PascalParser.ArgumentListContext argListCtx)
     {
         /***** Complete this method. *****/
+        String argTypes = "";
+        String returnType;
+        if (routineId.getType() == null) returnType = "V";
+        else returnType = typeDescriptor(routineId.getType().baseType());
+        argTypes += "(";
+        if (argListCtx != null) {
+            for (int i = 0; i < argListCtx.argument().size(); i++) {
+                compiler.visit(argListCtx.argument().get(i).expression());
+                if (typeDescriptor(argListCtx.argument().get(i).expression().type.baseType()).equals("I") && typeDescriptor(routineId.getRoutineParameters().get(i).getType().baseType()).equals("F")) {
+                    emit(I2F);
+                }
+            }
+            for (SymtabEntry parameter : routineId.getRoutineParameters()) {
+                argTypes += typeDescriptor(parameter.getType().baseType());
+            }
+        }
+        argTypes += ")";
+        emit(INVOKESTATIC, programName + "/" + routineId.getName() + argTypes + returnType);
     }
 
     /**
